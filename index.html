@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>2026 手搖飲日誌 | Nordic Style</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8f7f2;
+            color: #3e4a3d;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .nordic-card {
+            background: #ffffff;
+            border-radius: 24px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.03);
+        }
+        .nordic-input {
+            background: #f1f3f0;
+            border: 1px solid #e2e8e0;
+            border-radius: 12px;
+            padding: 10px 15px;
+            outline: none;
+            appearance: none;
+        }
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 8px;
+        }
+        .calendar-day {
+            aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 14px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            position: relative;
+            transition: all 0.2s;
+        }
+        .calendar-day.active {
+            background-color: #8da399;
+            color: white;
+            font-weight: bold;
+        }
+        .calendar-day.has-record::after {
+            content: '';
+            position: absolute;
+            bottom: 6px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background-color: #c9a66b;
+        }
+        .pill {
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            background: #ecefe9;
+        }
+        .bar-container {
+            background: #f1f3f0;
+            height: 12px;
+            border-radius: 6px;
+            overflow: hidden;
+            flex-grow: 1;
+        }
+        .bar-fill {
+            background: #8da399;
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.6s ease-out;
+        }
+        .nav-btn {
+            background: #f1f3f0;
+            border-radius: 12px;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 0.85rem;
+            color: #5c6e65;
+        }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- 標題 -->
+        <header class="mb-10 text-center">
+            <h1 class="text-4xl font-bold text-[#2d3a33] tracking-tight">2026 手搖飲日誌</h1>
+            <div class="mt-4 inline-block bg-white/50 px-6 py-2 rounded-full border border-white">
+                <p id="todayDisplay" class="font-medium text-[#5c6e65]">2026年 1月 1日</p>
+            </div>
+        </header>
+
+        <!-- 上方看板：核心統計與最愛 -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            <div class="nordic-card p-4 text-center">
+                <p class="text-[10px] text-gray-400 mb-1">年度總杯數</p>
+                <p id="statCount" class="text-2xl font-bold text-[#5c6e65]">0</p>
+            </div>
+            <div class="nordic-card p-4 text-center">
+                <p class="text-[10px] text-gray-400 mb-1">年度總支出</p>
+                <p id="statSpend" class="text-2xl font-bold text-[#5c6e65]">$0</p>
+            </div>
+            <div class="nordic-card p-4 text-center overflow-hidden">
+                <p class="text-[10px] text-gray-400 mb-1">最愛店家</p>
+                <p id="statFavoriteShop" class="text-sm font-bold text-[#8da399] truncate">尚未紀錄</p>
+            </div>
+            <div class="nordic-card p-4 text-center overflow-hidden">
+                <p class="text-[10px] text-gray-400 mb-1">最愛品項</p>
+                <p id="statFavoriteDrink" class="text-sm font-bold text-[#8da399] truncate">尚未紀錄</p>
+            </div>
+        </div>
+
+        <!-- 本月看板 -->
+        <div class="grid grid-cols-2 gap-4 mb-8">
+            <div class="nordic-card p-4 text-center bg-[#f1f3f0]/50">
+                <span id="statMonthLabel" class="text-[10px] text-gray-400 block">1月杯數</span>
+                <p id="monthCount" class="text-xl font-bold text-[#5c6e65]">0</p>
+            </div>
+            <div class="nordic-card p-4 text-center bg-[#f1f3f0]/50">
+                <span id="statMonthSpendLabel" class="text-[10px] text-gray-400 block">1月支出</span>
+                <p id="monthSpend" class="text-xl font-bold text-[#5c6e65]">$0</p>
+            </div>
+        </div>
+
+        <!-- 主要操作區 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            <!-- 月曆區 -->
+            <div class="lg:col-span-2">
+                <div class="nordic-card p-6 md:p-8">
+                    <div class="flex justify-between items-center mb-8">
+                        <button onclick="changeMonth(-1)" class="nav-btn active:scale-95 transition-transform">上個月</button>
+                        <h2 id="currentMonthYear" class="text-2xl font-bold text-[#2d3a33]">2026年 1月</h2>
+                        <button onclick="changeMonth(1)" class="nav-btn active:scale-95 transition-transform">下個月</button>
+                    </div>
+                    <div class="calendar-grid mb-4 text-center text-xs font-bold text-gray-400">
+                        <div>日</div><div>一</div><div>二</div><div>三</div><div>四</div><div>五</div><div>六</div>
+                    </div>
+                    <div id="calendarDays" class="calendar-grid"></div>
+                </div>
+            </div>
+
+            <!-- 輸入區 -->
+            <div class="lg:col-span-1">
+                <div class="nordic-card p-6 mb-6">
+                    <h3 class="text-lg font-bold mb-4">新增紀錄 <span id="selectedDateLabel" class="text-xs font-normal text-gray-400 ml-1"></span></h3>
+                    <div class="space-y-3">
+                        <input type="text" id="shopName" class="nordic-input w-full text-sm" placeholder="店家名稱">
+                        <input type="text" id="drinkName" class="nordic-input w-full text-sm" placeholder="品項名稱">
+                        <input type="text" id="topping" class="nordic-input w-full text-sm" placeholder="選填加料 (如: 珍珠)">
+                        <div class="grid grid-cols-2 gap-2 text-sm">
+                            <select id="sugar" class="nordic-input w-full"><option>無糖</option><option>一分糖</option><option selected>微糖</option><option>半糖</option><option>少糖</option><option>全糖</option></select>
+                            <select id="ice" class="nordic-input w-full"><option>去冰</option><option selected>微冰</option><option>少冰</option><option>正常冰</option><option>溫熱</option></select>
+                        </div>
+                        <input type="number" id="price" class="nordic-input w-full text-sm" placeholder="價格 (NTD)">
+                        <button onclick="saveRecord()" class="bg-[#5c6e65] text-white rounded-full py-3 w-full font-medium shadow-md active:scale-95 transition-transform mt-2">儲存紀錄</button>
+                    </div>
+                </div>
+                <div id="dayHistory" class="space-y-3"></div>
+            </div>
+        </div>
+
+        <!-- 底部細項統計區 -->
+        <hr class="border-gray-200 mb-12">
+        <section class="mb-20">
+            <h2 class="text-2xl font-bold text-[#2d3a33] mb-8 text-center uppercase tracking-widest italic">Detail Statistics 細項統計</h2>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- 店家數量統計 -->
+                <div class="nordic-card p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-md font-bold text-[#5c6e65]">店家數量統計</h3>
+                        <span id="statUniqueShops" class="bg-[#f1f3f0] px-3 py-1 rounded-full text-xs font-bold text-[#8da399]">0 店家</span>
+                    </div>
+                    <div id="shopChartContainer" class="space-y-4 text-sm">
+                        <p class="text-center text-gray-400 py-10 italic">尚無數據</p>
+                    </div>
+                </div>
+
+                <!-- 品項數量統計 -->
+                <div class="nordic-card p-6">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-md font-bold text-[#5c6e65]">品項數量統計</h3>
+                        <span id="statUniqueDrinks" class="bg-[#f1f3f0] px-3 py-1 rounded-full text-xs font-bold text-[#8da399]">0 品項</span>
+                    </div>
+                    <div id="itemChartContainer" class="space-y-3">
+                        <p class="text-center text-gray-400 py-10 italic">尚無數據</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[#3e4a3d] text-white px-8 py-3 rounded-full opacity-0 transition-opacity pointer-events-none text-sm z-50 shadow-lg"></div>
+
+    <script>
+        let currentYear = 2026;
+        let currentMonth = 0; 
+        let selectedDate = new Date(2026, 0, 1);
+        let drinkRecords = JSON.parse(localStorage.getItem('drinkRecords_2026')) || [];
+
+        function init() {
+            renderCalendar();
+            updateStats();
+            selectDay(1);
+        }
+
+        const showToast = (msg) => {
+            const toast = document.getElementById('toast');
+            toast.innerText = msg;
+            toast.classList.remove('opacity-0');
+            setTimeout(() => toast.classList.add('opacity-0'), 2000);
+        };
+
+        function renderCalendar() {
+            const daysContainer = document.getElementById('calendarDays');
+            const monthYearLabel = document.getElementById('currentMonthYear');
+            daysContainer.innerHTML = '';
+            const firstDay = new Date(currentYear, currentMonth, 1).getDay();
+            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+            monthYearLabel.innerText = `${currentYear}年 ${currentMonth + 1}月`;
+            for (let i = 0; i < firstDay; i++) daysContainer.appendChild(document.createElement('div'));
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dayEl = document.createElement('div');
+                dayEl.classList.add('calendar-day', 'relative');
+                dayEl.innerText = d;
+                const dateStr = formatDate(new Date(currentYear, currentMonth, d));
+                if (drinkRecords.some(r => r.date === dateStr)) dayEl.classList.add('has-record');
+                if (selectedDate.getDate() === d && selectedDate.getMonth() === currentMonth) dayEl.classList.add('active');
+                dayEl.onclick = () => selectDay(d);
+                daysContainer.appendChild(dayEl);
+            }
+        }
+
+        function changeMonth(delta) {
+            currentMonth += delta;
+            if (currentMonth > 11) { currentMonth = 0; currentYear++; } 
+            else if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+            renderCalendar();
+            selectDay(1);
+        }
+
+        function selectDay(day) {
+            selectedDate = new Date(currentYear, currentMonth, day);
+            const dateStr = formatDate(selectedDate);
+            document.getElementById('selectedDateLabel').innerText = dateStr;
+            document.getElementById('todayDisplay').innerText = `${selectedDate.getFullYear()}年 ${selectedDate.getMonth() + 1}月 ${selectedDate.getDate()}日`;
+            renderCalendar();
+            renderDayHistory();
+        }
+
+        function formatDate(date) {
+            return `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        function saveRecord() {
+            const shop = document.getElementById('shopName').value.trim();
+            const drink = document.getElementById('drinkName').value.trim();
+            const price = parseInt(document.getElementById('price').value) || 0;
+            if (!shop || !drink) { showToast("請完整填寫店家與品項"); return; }
+            const record = {
+                id: Date.now(),
+                date: formatDate(selectedDate),
+                month: currentMonth,
+                year: currentYear,
+                shop, drink, 
+                topping: document.getElementById('topping').value.trim(),
+                sugar: document.getElementById('sugar').value, 
+                ice: document.getElementById('ice').value, 
+                price
+            };
+            drinkRecords.push(record);
+            localStorage.setItem('drinkRecords_2026', JSON.stringify(drinkRecords));
+            document.getElementById('shopName').value = '';
+            document.getElementById('drinkName').value = '';
+            document.getElementById('topping').value = '';
+            document.getElementById('price').value = '';
+            renderCalendar(); renderDayHistory(); updateStats();
+            showToast("紀錄已自動儲存 ✨");
+        }
+
+        function deleteRecord(id) {
+            drinkRecords = drinkRecords.filter(r => r.id !== id);
+            localStorage.setItem('drinkRecords_2026', JSON.stringify(drinkRecords));
+            renderCalendar(); renderDayHistory(); updateStats();
+            showToast("紀錄已刪除");
+        }
+
+        function renderDayHistory() {
+            const container = document.getElementById('dayHistory');
+            const filtered = drinkRecords.filter(r => r.date === formatDate(selectedDate));
+            container.innerHTML = `<h4 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest px-1">今日詳細紀錄</h4>`;
+            if (filtered.length === 0) {
+                container.innerHTML += `<div class="nordic-card p-4 text-center text-gray-400 italic text-xs">這天還沒有紀錄</div>`;
+                return;
+            }
+            filtered.forEach(r => {
+                const card = document.createElement('div');
+                card.className = "nordic-card p-4 flex justify-between items-center";
+                card.innerHTML = `
+                    <div class="flex-1">
+                        <div class="flex justify-between mb-1"><p class="font-bold text-sm text-[#2d3a33]">${r.shop}</p><span class="text-xs font-bold text-[#8da399]">$${r.price}</span></div>
+                        <p class="text-xs text-gray-500 mb-2">${r.drink}</p>
+                        <div class="flex flex-wrap gap-1">
+                            <span class="pill">${r.sugar}</span><span class="pill">${r.ice}</span>
+                            ${r.topping ? `<span class="pill bg-white border border-[#ecefe9] text-[#8da399]">+ ${r.topping}</span>` : ''}
+                        </div>
+                    </div>
+                    <button onclick="deleteRecord(${r.id})" class="text-gray-200 hover:text-red-400 ml-4 transition-colors">×</button>`;
+                container.appendChild(card);
+            });
+        }
+
+        function updateStats() {
+            const count = drinkRecords.length;
+            const spend = drinkRecords.reduce((acc, curr) => acc + curr.price, 0);
+            
+            // 月統計
+            const monthlyFiltered = drinkRecords.filter(r => r.month === currentMonth && r.year === currentYear);
+            document.getElementById('statMonthLabel').innerText = `${currentMonth + 1}月杯數`;
+            document.getElementById('statMonthSpendLabel').innerText = `${currentMonth + 1}月支出`;
+            document.getElementById('monthCount').innerText = monthlyFiltered.length;
+            document.getElementById('monthSpend').innerText = `$${monthlyFiltered.reduce((a, c) => a + c.price, 0)}`;
+
+            document.getElementById('statCount').innerText = count;
+            document.getElementById('statSpend').innerText = `$${spend}`;
+
+            // 最愛店家與品項統計
+            const shopCounts = {};
+            const itemCounts = {};
+            drinkRecords.forEach(r => {
+                shopCounts[r.shop] = (shopCounts[r.shop] || 0) + 1;
+                itemCounts[r.drink] = (itemCounts[r.drink] || 0) + 1;
+            });
+
+            const topShop = Object.keys(shopCounts).reduce((a, b) => shopCounts[a] > shopCounts[b] ? a : b, "尚未紀錄");
+            const topDrink = Object.keys(itemCounts).reduce((a, b) => itemCounts[a] > itemCounts[b] ? a : b, "尚未紀錄");
+
+            document.getElementById('statFavoriteShop').innerText = count > 0 ? topShop : "尚未紀錄";
+            document.getElementById('statFavoriteDrink').innerText = count > 0 ? topDrink : "尚未紀錄";
+
+            renderShopCharts(shopCounts);
+            renderItemCharts(itemCounts);
+        }
+
+        function renderShopCharts(shopCounts) {
+            const container = document.getElementById('shopChartContainer');
+            const uniqueShopsLabel = document.getElementById('statUniqueShops');
+            if (drinkRecords.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-400 py-10 italic">尚無數據</p>`;
+                uniqueShopsLabel.innerText = "0 店家";
+                return;
+            }
+            
+            const sortedShops = Object.entries(shopCounts).sort((a, b) => b[1] - a[1]);
+            uniqueShopsLabel.innerText = `${sortedShops.length} 店家`;
+            const maxVal = sortedShops[0][1];
+            
+            container.innerHTML = sortedShops.map(([name, val]) => `
+                <div class="space-y-1">
+                    <div class="flex justify-between text-[11px] font-medium">
+                        <span>${name}</span>
+                        <span class="text-gray-400">${val} 杯</span>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar-fill" style="width: ${(val / maxVal) * 100}%"></div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function renderItemCharts(itemCounts) {
+            const container = document.getElementById('itemChartContainer');
+            const uniqueDrinksLabel = document.getElementById('statUniqueDrinks');
+            if (drinkRecords.length === 0) {
+                container.innerHTML = `<p class="text-center text-gray-400 py-10 italic">尚無數據</p>`;
+                uniqueDrinksLabel.innerText = "0 品項";
+                return;
+            }
+            
+            const sortedItems = Object.entries(itemCounts).sort((a, b) => b[1] - a[1]);
+            uniqueDrinksLabel.innerText = `${sortedItems.length} 品項`;
+
+            container.innerHTML = sortedItems.map(([name, val]) => `
+                <div class="flex items-center justify-between p-3 bg-[#f1f3f0] rounded-xl text-xs">
+                    <span class="font-medium text-[#5c6e65]">${name}</span>
+                    <span class="bg-white px-3 py-1 rounded-full font-bold shadow-sm">${val} 次</span>
+                </div>
+            `).join('');
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
